@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Review Results - GitLab MR AI Co-Reviewer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>Review Results</h1>
+      <div class="header-buttons">
+        <button id="post-comments-btn" class="post-button">Post Selected Comments to GitLab</button>
+        <button id="back-btn">Back to Review</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="review-results-container">
+        <h2>Review Comments (<span id="total-comments">0</span>)</h2>
+        
+        <div class="review-stats">
+          <div class="stat-item error-rev">
+            <span class="stat-count" id="error-count">0</span>
+            <span class="stat-label">Errors</span>
+          </div>
+          <div class="stat-item warning-rev">
+            <span class="stat-count" id="warning-count">0</span>
+            <span class="stat-label">Warnings</span>
+          </div>
+          <div class="stat-item info-rev">
+            <span class="stat-count" id="info-count">0</span>
+            <span class="stat-label">Info</span>
+          </div>
+        </div>
+        
+        <div id="files-container" class="files-container">
+          <!-- Files and comments will be inserted here by JavaScript -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="review-results.js"></script>
+</body>
+</html>
