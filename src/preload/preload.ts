@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, clipboard } from 'electron';
 import { MergeRequest, ChangedFile } from '../main/gitlab-service';
 
 // Expose protected methods that allow the renderer process to use
@@ -16,5 +16,34 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('get-assigned-merge-requests'),
     
   getMergeRequestChanges: (mergeRequestId: number, projectId: number): Promise<ChangedFile[]> => 
-    ipcRenderer.invoke('get-merge-request-changes', mergeRequestId, projectId)
+    ipcRenderer.invoke('get-merge-request-changes', mergeRequestId, projectId),
+    
+  // GitHub authorization functions
+  githubCheckAuth: (): Promise<{ authorized: boolean; expiresAt?: Date }> =>
+    ipcRenderer.invoke('github-check-auth'),
+    
+  githubStartAuth: (): Promise<{ device_code: string; user_code: string; verification_uri: string; expires_in: number; interval: number }> =>
+    ipcRenderer.invoke('github-start-auth'),
+    
+  githubPollToken: (deviceCode: string, interval: number): Promise<{ success: boolean; token?: string }> =>
+    ipcRenderer.invoke('github-poll-token', deviceCode, interval),
+    
+  githubClearToken: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('github-clear-token'),
+    
+  // Clipboard functions
+  copyToClipboard: (text: string): void => {
+    clipboard.writeText(text);
+  },
+  
+  // Code review function
+  reviewCode: (
+    files: Array<{ 
+      path: string; 
+      diff: string; 
+      isNew?: boolean;
+      isDeleted?: boolean;
+    }>, 
+    reviewLevel: 'light' | 'medium' | 'expert'
+  ) => ipcRenderer.invoke('review-code', files, reviewLevel)
 });

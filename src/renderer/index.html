@@ -15,18 +15,45 @@
     <div id="settings-modal" class="modal">
       <div class="modal-content">
         <span class="close">&times;</span>
-        <h2>GitLab Settings</h2>
-        <form id="settings-form">
-          <div class="form-group">
-            <label for="gitlab-url">GitLab URL</label>
-            <input type="url" id="gitlab-url" name="gitlabUrl" placeholder="https://gitlab.com" required>
+        <h2>Settings</h2>
+        
+        <div class="settings-section">
+          <h3>GitLab Settings</h3>
+          <form id="settings-form">
+            <div class="form-group">
+              <label for="gitlab-url">GitLab URL</label>
+              <input type="url" id="gitlab-url" name="gitlabUrl" placeholder="https://gitlab.com" required>
+            </div>
+            <div class="form-group">
+              <label for="gitlab-token">Personal Access Token</label>
+              <input type="password" id="gitlab-token" name="gitlabToken" placeholder="Your GitLab token" required>
+            </div>
+            <button type="submit">Save GitLab Settings</button>
+          </form>
+        </div>
+        
+        <div class="settings-section">
+          <h3>GitHub Authorization</h3>
+          <p>Authorize with GitHub to enable additional review features.</p>
+          <div id="github-auth-status">Not authorized</div>
+          <div class="auth-actions">
+            <button id="github-auth-btn" class="github-btn">Authorize GitHub</button>
           </div>
-          <div class="form-group">
-            <label for="gitlab-token">Personal Access Token</label>
-            <input type="password" id="gitlab-token" name="gitlabToken" placeholder="Your GitLab token" required>
+          <div id="github-device-flow" class="hidden">
+            <p>Please visit <a id="verification-url" target="_blank" href="#">GitHub</a> and enter this code:</p>
+            <div class="device-code">
+              <span id="user-code"></span>
+              <button id="copy-code-btn" title="Copy to clipboard">
+                <span class="copy-icon">📋</span>
+              </button>
+            </div>
+            <div id="auth-progress" class="hidden">
+              <div class="spinner"></div>
+              <span>Waiting for authorization...</span>
+            </div>
           </div>
-          <button type="submit">Save</button>
-        </form>
+        </div>
+        
       </div>
     </div>
 

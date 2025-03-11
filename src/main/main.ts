@@ -1,8 +1,10 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
 import Store from 'electron-store';
 import { GitLabService } from './gitlab-service';
+import * as GitHubAuth from './github-auth';
+import * as CopilotService from './copilot-service';
 
 // Define the store schema
 interface StoreSchema {
@@ -124,6 +126,68 @@ ipcMain.handle('get-merge-request-changes', async (_, mergeRequestId: number, pr
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     dialog.showErrorBox('Error Fetching Changes', errorMessage);
+    throw error;
+  }
+});
+
+// GitHub authorization handlers
+ipcMain.handle('github-check-auth', () => {
+  const token = GitHubAuth.getToken();
+  return {
+    authorized: !!token,
+    expiresAt: token?.expiresAt
+  };
+});
+
+ipcMain.handle('github-start-auth', async () => {
+  try {
+    const deviceCode = await GitHubAuth.getDeviceCode();
+    
+    // Open the verification URL in the default browser
+    shell.openExternal(deviceCode.verification_uri);
+    
+    return deviceCode;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    dialog.showErrorBox('GitHub Authorization Error', errorMessage);
+    throw error;
+  }
+});
+
+ipcMain.handle('github-poll-token', async (_, deviceCode: string, interval: number) => {
+  try {
+    const token = await GitHubAuth.pollForToken(deviceCode, interval);
+    return { success: true, token };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    dialog.showErrorBox('GitHub Authorization Error', errorMessage);
+    throw error;
+  }
+});
+
+ipcMain.handle('github-clear-token', () => {
+  GitHubAuth.clearToken();
+  return { success: true };
+});
+
+// Copilot code review handler
+ipcMain.handle('review-code', async (_, files, reviewLevel) => {
+  try {
+    const comments = await CopilotService.reviewCode(files, reviewLevel);
+    return { success: true, comments };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Special handling for auth errors
+    if (errorMessage.includes('token expired') || 
+        errorMessage.includes('invalid') ||
+        errorMessage.includes('authorize')) {
+      dialog.showErrorBox('Authorization Error', 
+        'GitHub or Copilot token is invalid or expired. Please reauthorize with GitHub.');
+    } else {
+      dialog.showErrorBox('Code Review Error', errorMessage);
+    }
+    
     throw error;
   }
 });

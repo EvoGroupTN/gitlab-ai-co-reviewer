@@ -52,7 +52,7 @@ reviewOptions.forEach(option => {
 
 // Handle select button click
 selectButtons.forEach(button => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
     const option = button.closest('.review-option');
     selectedLevel = option.dataset.level;
     
@@ -62,16 +62,47 @@ selectButtons.forEach(button => {
     // Add selected class to clicked option
     option.classList.add('selected');
     
-    // Here we would normally proceed with the review process
-    // For now, just log the selection
-    console.log(`Selected review level: ${selectedLevel}`);
-    console.log(`Selected files: ${selectedFiles.length}`);
-    
     // Store the selected level in localStorage for future use
     localStorage.setItem('reviewLevel', selectedLevel);
     
-    // Show confirmation
-    alert(`Review level set to ${selectedLevel}. The review will be implemented in the future.`);
+    // Disable only the clicked button and show "Reviewing..." text
+    button.disabled = true;
+    button.textContent = 'Reviewing...';
+    
+    try {
+      // Prepare files with diffs for review
+      const filesForReview = selectedFiles.map(file => {
+        return {
+          path: file.new_path || file.old_path,
+          diff: file.diff,
+          isNew: file.new_file,
+          isDeleted: file.deleted_file
+        };
+      });
+      
+      // Call the Copilot API to review the code
+      const result = await window.api.reviewCode(filesForReview, selectedLevel);
+      
+      // Log the result to the console (as requested)
+      console.log('Review completed successfully with the following comments:');
+      console.log(result.comments);
+      
+      // Store the comments in localStorage so the results page can access them
+      localStorage.setItem('reviewComments', JSON.stringify(result.comments));
+      
+      // Navigate to the results page
+      window.location.href = 'review-results.html';
+    } catch (error) {
+      console.error('Code review error:', error);
+      alert(`Error during code review: ${error.message || 'Unknown error'}`);
+    } finally {
+      // Re-enable only the clicked button and restore text
+      button.disabled = false;
+      button.textContent = 'Select';
+      
+      // Mark the current option as selected again
+      option.classList.add('selected');
+    }
   });
 });
 

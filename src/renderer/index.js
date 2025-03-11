@@ -10,6 +10,15 @@ const mergeRequestsContainer = document.getElementById('merge-requests');
 const fileListContainer = document.getElementById('file-list');
 const selectedFilesContainer = document.getElementById('selected-files');
 
+// GitHub auth elements
+const githubAuthBtn = document.getElementById('github-auth-btn');
+const githubAuthStatus = document.getElementById('github-auth-status');
+const githubDeviceFlow = document.getElementById('github-device-flow');
+const verificationUrl = document.getElementById('verification-url');
+const userCodeElement = document.getElementById('user-code');
+const copyCodeBtn = document.getElementById('copy-code-btn');
+const authProgress = document.getElementById('auth-progress');
+
 // State
 let currentMergeRequest = null;
 let selectedFiles = [];
@@ -21,6 +30,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     const config = await window.api.getConfig();
     gitlabUrlInput.value = config.gitlabUrl;
     gitlabTokenInput.value = config.gitlabToken;
+    
+    // Check GitHub auth status
+    await checkGitHubAuthStatus();
     
     // If we have a token, load MRs
     if (config.gitlabToken) {
@@ -500,5 +512,98 @@ function showError(message) {
   
   setTimeout(() => {
     errorElement.remove();
+  }, 3000);
+}
+
+// GitHub authorization functions
+async function checkGitHubAuthStatus() {
+  try {
+    const authStatus = await window.api.githubCheckAuth();
+    
+    if (authStatus.authorized) {
+      githubAuthStatus.textContent = 'Authorized';
+      githubAuthStatus.classList.add('authorized');
+      githubAuthBtn.textContent = 'Reauthorize GitHub';
+      
+      // Show expiration date if available
+      if (authStatus.expiresAt) {
+        const expiresDate = new Date(authStatus.expiresAt);
+        const formatter = new Intl.DateTimeFormat(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+        githubAuthStatus.textContent += ` (expires: ${formatter.format(expiresDate)})`;
+      }
+    } else {
+      githubAuthStatus.textContent = 'Not authorized';
+      githubAuthStatus.classList.remove('authorized');
+      githubAuthBtn.textContent = 'Authorize GitHub';
+    }
+  } catch (error) {
+    console.error('Error checking GitHub auth status:', error);
+    githubAuthStatus.textContent = 'Error checking authorization status';
+  }
+}
+
+// GitHub auth button
+githubAuthBtn.addEventListener('click', async () => {
+  try {
+    // Clear previous flow UI
+    githubDeviceFlow.classList.remove('hidden');
+    authProgress.classList.add('hidden');
+    
+    // Get device code
+    const deviceCode = await window.api.githubStartAuth();
+    
+    // Show device code to user
+    verificationUrl.href = deviceCode.verification_uri;
+    userCodeElement.textContent = deviceCode.user_code;
+    
+    // Show waiting indicator
+    authProgress.classList.remove('hidden');
+    
+    // Start polling for token
+    const result = await window.api.githubPollToken(deviceCode.device_code, deviceCode.interval);
+    
+    if (result.success) {
+      // Update status
+      await checkGitHubAuthStatus();
+      
+      // Hide device flow UI
+      githubDeviceFlow.classList.add('hidden');
+      
+      // Show success message
+      showMessage('GitHub authorization successful!');
+    }
+  } catch (error) {
+    // Hide device flow UI
+    githubDeviceFlow.classList.add('hidden');
+    
+    // Show error
+    showError('GitHub authorization failed: ' + (error.message || 'Unknown error'));
+    console.error('GitHub auth error:', error);
+  }
+});
+
+// Copy code button
+copyCodeBtn.addEventListener('click', () => {
+  const code = userCodeElement.textContent;
+  if (code) {
+    window.api.copyToClipboard(code);
+    showMessage('Code copied to clipboard!');
+  }
+});
+
+// Helper function to show a temporary message
+function showMessage(message) {
+  const messageElement = document.createElement('div');
+  messageElement.className = 'info-message';
+  messageElement.textContent = message;
+  
+  document.body.appendChild(messageElement);
+  
+  setTimeout(() => {
+    messageElement.remove();
   }, 3000);
 }
