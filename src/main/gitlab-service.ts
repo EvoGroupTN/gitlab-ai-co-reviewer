@@ -183,15 +183,84 @@ export class GitLabService {
   /**
    * Get changes for a specific merge request
    */
-  async getMergeRequestChanges(projectId: number, mergeRequestIid: number): Promise<ChangedFile[]> {
+  async getMergeRequestChanges(projectId: number, mergeRequestIid: number): Promise<{ changes: ChangedFile[], headSha: string, baseSha: string }> {
     try {
+      // Get merge request changes
       const response = await this.api.get(`/projects/${projectId}/merge_requests/${mergeRequestIid}/changes`);
-      const data = response.data as MergeRequestChanges;
-      return data.changes;
+      
+      // Get additional merge request details to get commit SHAs
+      const mrResponse = await this.api.get(`/projects/${projectId}/merge_requests/${mergeRequestIid}`);
+      
+      return {
+        changes: response.data.changes,
+        headSha: mrResponse.data.sha, // Head commit SHA
+        baseSha: mrResponse.data.diff_refs.base_sha // Base commit SHA
+      };
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const errorMessage = error.response?.data?.message || error.message;
         throw new Error(`Failed to fetch merge request changes: ${errorMessage}`);
+      }
+      throw error;
+    }
+  }
+  
+  /**
+   * Post comments to a merge request
+   */
+  async postMergeRequestComments(
+    projectId: number, 
+    mergeRequestIid: number, 
+    comments: Array<{
+      filePath: string;
+      lineNumber: number;
+      comment: string;
+    }>
+  ): Promise<boolean> {
+    try {
+      // Get merge request details to fetch the required SHAs
+      const mrResponse = await this.api.get(`/projects/${projectId}/merge_requests/${mergeRequestIid}`);
+      const headSha = mrResponse.data.sha;
+      const diffRefs = mrResponse.data.diff_refs;
+      const baseSha = diffRefs.base_sha;
+      const startSha = diffRefs.start_sha;
+      
+      // Post each comment individually
+      for (const comment of comments) {
+        
+        // Generate line_code in the expected GitLab format
+        const lineCode = `${comment.filePath.replace(/\//g, '_')}_L${comment.lineNumber}`;
+        
+        // Using format directly from GitLab docs, with line_code added to position
+        const requestData = {
+          body: comment.comment,
+          position: {
+            position_type: 'text',
+            base_sha: baseSha,
+            head_sha: headSha,
+            start_sha: startSha,
+            new_path: comment.filePath,
+            old_path: comment.filePath,  // Use same path for old_path
+            new_line: comment.lineNumber,
+            line_code: lineCode
+          }
+        };
+        
+        // Log the API call to the terminal
+        console.log(`Posting comment to GitLab API: 
+URL: /projects/${projectId}/merge_requests/${mergeRequestIid}/discussions
+Data:`, JSON.stringify(requestData, null, 2));
+        
+        await this.api.post(`/projects/${projectId}/merge_requests/${mergeRequestIid}/discussions`, requestData);
+      }
+      
+      return true;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        // Log the error details
+        console.error('GitLab API Error:', error.response?.data || error.message);
+        const errorMessage = error.response?.data?.message || error.message;
+        throw new Error(`Failed to post comments: ${errorMessage}`);
       }
       throw error;
     }

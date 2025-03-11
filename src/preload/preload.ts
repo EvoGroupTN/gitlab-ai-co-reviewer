@@ -18,6 +18,17 @@ contextBridge.exposeInMainWorld('api', {
   getMergeRequestChanges: (mergeRequestId: number, projectId: number): Promise<ChangedFile[]> => 
     ipcRenderer.invoke('get-merge-request-changes', mergeRequestId, projectId),
     
+  postMergeRequestComments: (
+    projectId: number, 
+    mergeRequestId: number, 
+    comments: Array<{
+      filePath: string;
+      lineNumber: number;
+      comment: string;
+    }>
+  ): Promise<{ success: boolean }> => 
+    ipcRenderer.invoke('post-merge-request-comments', projectId, mergeRequestId, comments),
+    
   // GitHub authorization functions
   githubCheckAuth: (): Promise<{ authorized: boolean; expiresAt?: Date }> =>
     ipcRenderer.invoke('github-check-auth'),

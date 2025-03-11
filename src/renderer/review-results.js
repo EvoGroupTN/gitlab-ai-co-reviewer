@@ -1,5 +1,6 @@
 // DOM Elements
 const backButton = document.getElementById('back-btn');
+const postCommentsButton = document.getElementById('post-comments-btn');
 const totalCommentsElement = document.getElementById('total-comments');
 const errorCountElement = document.getElementById('error-count');
 const warningCountElement = document.getElementById('warning-count');
@@ -20,6 +21,71 @@ try {
 // Handle back button click
 backButton.addEventListener('click', () => {
   window.location.href = 'review.html';
+});
+
+// Handle post comments button click
+postCommentsButton.addEventListener('click', async () => {
+  // Get all selected comments
+  const selectedCommentElements = document.querySelectorAll('.comment-item.selected');
+  
+  if (selectedCommentElements.length === 0) {
+    alert('Please select at least one comment to post.');
+    return;
+  }
+  
+  // Get the merge request data from localStorage
+  const mergeRequestData = localStorage.getItem('currentMergeRequest');
+  if (!mergeRequestData) {
+    alert('Merge request information not found. Please start over.');
+    return;
+  }
+  
+  const mergeRequest = JSON.parse(mergeRequestData);
+  const projectId = mergeRequest.project_id;
+  const mergeRequestId = mergeRequest.iid;
+  
+  // Collect the selected comments
+  const selectedComments = Array.from(selectedCommentElements).map(element => {
+    return {
+      filePath: element.dataset.filePath,
+      lineNumber: parseInt(element.dataset.lineNumber, 10),
+      comment: element.querySelector('.comment-text').textContent
+    };
+  });
+  
+  // Confirm before posting
+  const confirmed = confirm(`Post ${selectedComments.length} comments to merge request #${mergeRequestId}?`);
+  if (!confirmed) return;
+  
+  try {
+    // Disable button and show posting status
+    postCommentsButton.disabled = true;
+    postCommentsButton.textContent = 'Posting Comments...';
+    
+    // Call the API to post comments
+    const result = await window.api.postMergeRequestComments(
+      projectId,
+      mergeRequestId,
+      selectedComments
+    );
+    
+    if (result.success) {
+      alert(`Successfully posted ${selectedComments.length} comments to GitLab!`);
+      
+      // Mark the posted comments with a "posted" class
+      selectedCommentElements.forEach(element => {
+        element.classList.add('posted');
+        element.title = 'Comment posted to GitLab';
+      });
+    }
+  } catch (error) {
+    console.error('Error posting comments:', error);
+    alert(`Error posting comments: ${error.message || 'Unknown error'}`);
+  } finally {
+    // Re-enable button
+    postCommentsButton.disabled = false;
+    postCommentsButton.textContent = 'Post Selected Comments to GitLab';
+  }
 });
 
 // Initialize the results page

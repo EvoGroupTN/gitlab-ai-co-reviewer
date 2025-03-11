@@ -122,10 +122,31 @@ ipcMain.handle('get-merge-request-changes', async (_, mergeRequestId: number, pr
   }
   
   try {
-    return await gitlabService.getMergeRequestChanges(projectId, mergeRequestId);
+    const result = await gitlabService.getMergeRequestChanges(projectId, mergeRequestId);
+    // Just return the changes to maintain compatibility with existing code
+    return result.changes;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     dialog.showErrorBox('Error Fetching Changes', errorMessage);
+    throw error;
+  }
+});
+
+ipcMain.handle('post-merge-request-comments', async (_, projectId: number, mergeRequestId: number, comments: Array<{
+  filePath: string;
+  lineNumber: number;
+  comment: string;
+}>) => {
+  if (!gitlabService) {
+    throw new Error('GitLab service not initialized. Please set your GitLab token.');
+  }
+  
+  try {
+    await gitlabService.postMergeRequestComments(projectId, mergeRequestId, comments);
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    dialog.showErrorBox('Error Posting Comments', errorMessage);
     throw error;
   }
 });

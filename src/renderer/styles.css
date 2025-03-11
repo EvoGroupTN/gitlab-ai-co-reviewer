@@ -844,6 +844,23 @@ button:hover {
   border-left: 4px solid #2684FF;
 }
 
+.comment-item.posted {
+  opacity: 0.7;
+  position: relative;
+}
+
+.comment-item.posted:after {
+  content: "✓ Posted";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #28a745;
+  color: white;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
 .comment-item:last-child {
   border-bottom: none;
 }
@@ -887,6 +904,25 @@ button:hover {
   margin-top: 10px;
   line-height: 1.5;
   font-size: 0.95rem;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.post-button {
+  background-color: #6f42c1;
+  transition: background-color 0.2s;
+}
+
+.post-button:hover {
+  background-color: #5a32a3;
+}
+
+.post-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
 }
 
 .loading {
