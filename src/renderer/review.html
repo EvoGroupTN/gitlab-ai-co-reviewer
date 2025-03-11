@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Review Settings - GitLab MR Viewer</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>Review Settings</h1>
+      <button id="back-btn">Back to Files</button>
+    </header>
+
+    <main>
+      <div class="review-container">
+        <h2>Select Review Level</h2>
+        <p class="review-description">Choose the review depth level</p>
+        
+        <div class="review-options">
+          <div class="review-option" data-level="light">
+            <h3>Light Review</h3>
+            <p>Basic code structure, syntax, and obvious issues</p>
+            <button class="select-btn">Select</button>
+          </div>
+          
+          <div class="review-option" data-level="medium">
+            <h3>Medium Review</h3>
+            <p>Deeper analysis of logic, patterns, and code organization</p>
+            <button class="select-btn">Select</button>
+          </div>
+          
+          <div class="review-option" data-level="expert">
+            <h3>Expert Review</h3>
+            <p>Comprehensive review including security, performance, and best practices</p>
+            <button class="select-btn">Select</button>
+          </div>
+        </div>
+        
+        <div class="selected-files-summary">
+          <h3>Selected Files (<span id="file-count">0</span>)</h3>
+          <div id="selected-files-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="review.js"></script>
+</body>
+</html>

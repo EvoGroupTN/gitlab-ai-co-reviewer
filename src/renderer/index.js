@@ -460,6 +460,34 @@ function updateSelectedFiles() {
   createTypeSection(deletedFiles, 'deleted', '-');
   
   selectedFilesContainer.appendChild(fileListElement);
+  
+  // Add Review button
+  const reviewButtonContainer = document.createElement('div');
+  reviewButtonContainer.className = 'review-button-container';
+  
+  const reviewButton = document.createElement('button');
+  reviewButton.className = 'review-btn';
+  reviewButton.textContent = 'Review Selected Files';
+  reviewButton.addEventListener('click', () => {
+    // Save selected files data to localStorage
+    localStorage.setItem('selectedFiles', JSON.stringify(selectedFiles));
+    
+    // Save current merge request info if available
+    if (currentMergeRequest) {
+      localStorage.setItem('currentMergeRequest', JSON.stringify(currentMergeRequest));
+    }
+    
+    // Navigate to review page
+    window.location.href = 'review.html';
+  });
+  
+  // Disable button if no files selected
+  if (selectedFiles.length === 0) {
+    reviewButton.disabled = true;
+  }
+  
+  reviewButtonContainer.appendChild(reviewButton);
+  selectedFilesContainer.appendChild(reviewButtonContainer);
 }
 
 // Helper function to show errors
