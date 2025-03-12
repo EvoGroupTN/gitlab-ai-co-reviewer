@@ -1,7 +1,10 @@
+/* global window, document, localStorage, setTimeout, console */
+
 // DOM Elements
 const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal');
 const modalClose = document.querySelector('.close');
+const fileFilter = document.getElementById('file-filter');
 const settingsForm = document.getElementById('settings-form');
 const gitlabUrlInput = document.getElementById('gitlab-url');
 const gitlabTokenInput = document.getElementById('gitlab-token');
@@ -22,25 +25,312 @@ const authProgress = document.getElementById('auth-progress');
 // State
 let currentMergeRequest = null;
 let selectedFiles = [];
+let allFiles = []; // Store all files for filtering
+
+// Helper functions at root level
+function filterFiles(files, filterText) {
+  if (!filterText) return files;
+  try {
+    const regex = new RegExp(filterText, 'i');
+    return files.filter(file => regex.test(file.new_path || file.old_path));
+  } catch (e) {
+    return files;
+  }
+}
+
+function createFileSection(title, files, className) {
+  if (files.length === 0) return;
+  
+  const sectionElement = document.createElement('div');
+  sectionElement.className = 'file-section';
+  
+  const titleElement = document.createElement('div');
+  titleElement.className = 'file-section-title';
+  titleElement.textContent = `${title} (${files.length})`;
+  sectionElement.appendChild(titleElement);
+  
+  const filteredFiles = filterFiles(files, fileFilter?.value || '');
+  if (filteredFiles.length === 0) return;
+
+  filteredFiles.forEach(file => {
+    const fileElement = document.createElement('div');
+    fileElement.className = `file-item ${className}`;
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'file-checkbox';
+    checkbox.id = `file-${file.new_path || file.old_path}`;
+    checkbox.dataset.path = file.new_path || file.old_path;
+    
+    // Check if file is already selected
+    if (selectedFiles.some(f => (f.new_path || f.old_path) === (file.new_path || file.old_path))) {
+      checkbox.checked = true;
+    }
+    
+    const label = document.createElement('label');
+    label.htmlFor = checkbox.id;
+    label.className = 'file-path';
+    label.textContent = file.new_path || file.old_path;
+    
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        selectedFiles.push(file);
+      } else {
+        selectedFiles = selectedFiles.filter(f => 
+          (f.new_path || f.old_path) !== (file.new_path || file.old_path)
+        );
+      }
+      
+      updateSelectedFiles();
+      updateSelectAllCheckbox();
+    });
+    
+    fileElement.appendChild(checkbox);
+    fileElement.appendChild(label);
+    sectionElement.appendChild(fileElement);
+  });
+  
+  fileListContainer.appendChild(sectionElement);
+}
+
+function updateSelectAllCheckbox() {
+  const selectAllCheckbox = document.getElementById('select-all-files');
+  if (!selectAllCheckbox) return;
+
+  const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+  const checkedCount = document.querySelectorAll('.file-checkbox:checked').length;
+  
+  if (checkedCount === 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+  } else if (checkedCount === fileCheckboxes.length) {
+    selectAllCheckbox.checked = true;
+    selectAllCheckbox.indeterminate = false;
+  } else {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = true;
+  }
+}
+
+function renderFileList() {
+  // Keep header but clear file sections
+  const header = fileListContainer.querySelector('.file-list-header');
+  fileListContainer.innerHTML = '';
+  if (header) {
+    fileListContainer.appendChild(header);
+  }
+
+  // Group files by type
+  const newFiles = allFiles.filter(f => f.new_file);
+  const modifiedFiles = allFiles.filter(f => !f.new_file && !f.deleted_file);
+  const deletedFiles = allFiles.filter(f => f.deleted_file);
+
+  // Create sections
+  createFileSection('Added', newFiles, 'new');
+  createFileSection('Modified', modifiedFiles, 'modified');
+  createFileSection('Deleted', deletedFiles, 'deleted');
+
+  // Update select all checkbox
+  updateSelectAllCheckbox();
+}
+
+// Add filter change handler
+fileFilter?.addEventListener('input', () => {
+  renderFileList();
+});
+
+// Update the selected files display
+function updateSelectedFiles() {
+  selectedFilesContainer.innerHTML = '';
+  
+  if (selectedFiles.length === 0) {
+    selectedFilesContainer.innerHTML = '<p class="no-selection">No files selected</p>';
+    return;
+  }
+  
+  const headerElement = document.createElement('div');
+  headerElement.className = 'selected-files-header';
+  
+  const heading = document.createElement('h3');
+  heading.textContent = 'Selected Files';
+  
+  const countElement = document.createElement('span');
+  countElement.className = 'selected-count';
+  countElement.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`;
+  
+  const clearButton = document.createElement('button');
+  clearButton.className = 'clear-selected';
+  clearButton.textContent = 'Clear Selection';
+  clearButton.addEventListener('click', () => {
+    selectedFiles = [];
+    renderFileList();
+    updateSelectedFiles();
+  });
+  
+  headerElement.appendChild(heading);
+  headerElement.appendChild(countElement);
+  headerElement.appendChild(clearButton);
+  selectedFilesContainer.appendChild(headerElement);
+  
+  // Create selected files list
+  const fileListElement = document.createElement('div');
+  fileListElement.className = 'selected-files-list';
+  
+  selectedFiles.forEach(file => {
+    const className = file.new_file ? 'new' : file.deleted_file ? 'deleted' : 'modified';
+    const icon = file.new_file ? '+' : file.deleted_file ? '-' : '~';
+    
+    const fileElement = document.createElement('div');
+    fileElement.className = `selected-file ${className}`;
+    
+    const iconElement = document.createElement('span');
+    iconElement.className = 'file-icon';
+    iconElement.textContent = icon;
+    
+    const pathElement = document.createElement('span');
+    pathElement.className = 'file-path';
+    pathElement.textContent = file.new_path || file.old_path;
+    
+    const removeButton = document.createElement('button');
+    removeButton.className = 'remove-file';
+    removeButton.innerHTML = '&times;';
+    removeButton.title = 'Remove from selection';
+    removeButton.addEventListener('click', () => {
+      selectedFiles = selectedFiles.filter(f => 
+        (f.new_path || f.old_path) !== (file.new_path || file.old_path)
+      );
+      renderFileList();
+      updateSelectedFiles();
+    });
+    
+    fileElement.appendChild(iconElement);
+    fileElement.appendChild(pathElement);
+    fileElement.appendChild(removeButton);
+    fileListElement.appendChild(fileElement);
+  });
+  
+  selectedFilesContainer.appendChild(fileListElement);
+  
+  // Add Review button
+  const reviewButtonContainer = document.createElement('div');
+  reviewButtonContainer.className = 'review-button-container';
+  
+  const reviewButton = document.createElement('button');
+  reviewButton.className = 'review-btn';
+  reviewButton.textContent = 'Review Selected Files';
+  reviewButton.addEventListener('click', () => {
+    localStorage.setItem('selectedFiles', JSON.stringify(selectedFiles));
+    if (currentMergeRequest) {
+      localStorage.setItem('currentMergeRequest', JSON.stringify(currentMergeRequest));
+    }
+    window.location.href = 'review.html';
+  });
+  
+  reviewButton.disabled = selectedFiles.length === 0;
+  
+  reviewButtonContainer.appendChild(reviewButton);
+  selectedFilesContainer.appendChild(reviewButtonContainer);
+}
+
+// Load merge request files
+async function loadMergeRequestFiles(mergeRequestId, projectId) {
+  try {
+    fileListContainer.innerHTML = '<div class="loading">Loading files...</div>';
+    selectedFilesContainer.innerHTML = '';
+    selectedFiles = [];
+    
+    const files = await window.api.getMergeRequestChanges(mergeRequestId, projectId);
+    
+    if (files.length === 0) {
+      fileListContainer.innerHTML = '<div class="empty-state">No files changed in this merge request</div>';
+      return;
+    }
+    
+    // Store all files for filtering
+    allFiles = files;
+    
+    // Clear the container
+    fileListContainer.innerHTML = '';
+    
+    // Add header with count and select all option
+    const headerElement = document.createElement('div');
+    headerElement.className = 'file-list-header';
+    
+    const countElement = document.createElement('span');
+    countElement.textContent = `${files.length} changed file${files.length > 1 ? 's' : ''}`;
+    
+    const selectAllContainer = document.createElement('div');
+    selectAllContainer.className = 'select-all-container';
+    
+    const selectAllCheckbox = document.createElement('input');
+    selectAllCheckbox.type = 'checkbox';
+    selectAllCheckbox.id = 'select-all-files';
+    
+    const selectAllLabel = document.createElement('label');
+    selectAllLabel.htmlFor = 'select-all-files';
+    selectAllLabel.textContent = 'Select All';
+    
+    selectAllContainer.appendChild(selectAllCheckbox);
+    selectAllContainer.appendChild(selectAllLabel);
+    
+    headerElement.appendChild(countElement);
+    headerElement.appendChild(selectAllContainer);
+    fileListContainer.appendChild(headerElement);
+    
+    // Handle select all functionality
+    selectAllCheckbox.addEventListener('change', () => {
+      const visibleFiles = filterFiles(allFiles, fileFilter?.value || '');
+      const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+      
+      fileCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+        
+        // Find matching file
+        const file = visibleFiles.find(f => (f.new_path || f.old_path) === checkbox.dataset.path);
+        if (file) {
+          if (selectAllCheckbox.checked) {
+            // Add to selected files if not already there
+            if (!selectedFiles.some(f => (f.new_path || f.old_path) === checkbox.dataset.path)) {
+              selectedFiles.push(file);
+            }
+          } else {
+            // Remove from selected files
+            selectedFiles = selectedFiles.filter(f => 
+              (f.new_path || f.old_path) !== checkbox.dataset.path
+            );
+          }
+        }
+      });
+      
+      updateSelectedFiles();
+    });
+    
+    // Reset filter
+    if (fileFilter) {
+      fileFilter.value = '';
+    }
+    
+    // Render the file list
+    renderFileList();
+    
+  } catch (error) {
+    fileListContainer.innerHTML = '<div class="error">Failed to load files</div>';
+    console.error(error);
+  }
+}
 
 // Load config when app starts
 window.addEventListener('DOMContentLoaded', async () => {
   try {
-    // Load configuration
     const config = await window.api.getConfig();
     gitlabUrlInput.value = config.gitlabUrl;
     gitlabTokenInput.value = config.gitlabToken;
     
-    // Check GitHub auth status
     await checkGitHubAuthStatus();
     
-    // If we have a token, load MRs
     if (config.gitlabToken) {
-      // Don't automatically load MRs on startup to avoid 401 errors
-      // await loadMergeRequests();
       mergeRequestsContainer.innerHTML = '<div class="info">Click Refresh to load your merge requests</div>';
     } else {
-      // Show settings modal if no token is set
       settingsModal.style.display = 'block';
     }
   } catch (error) {
@@ -75,8 +365,6 @@ settingsForm.addEventListener('submit', async (event) => {
     });
     
     settingsModal.style.display = 'none';
-    
-    // Reload MRs with new settings
     await loadMergeRequests();
   } catch (error) {
     showError('Failed to save configuration');
@@ -89,7 +377,6 @@ refreshBtn.addEventListener('click', async () => {
   try {
     await loadMergeRequests();
   } catch (error) {
-    // If we get an auth error, show the settings modal
     if (error.message && error.message.includes('token')) {
       showError('Authentication failed. Please update your GitLab token.');
       settingsModal.style.display = 'block';
@@ -99,7 +386,26 @@ refreshBtn.addEventListener('click', async () => {
   }
 });
 
-// Load merge requests
+// Helper functions
+function showError(message) {
+  const errorElement = document.createElement('div');
+  errorElement.className = 'error-message';
+  errorElement.textContent = message;
+  
+  document.body.appendChild(errorElement);
+  setTimeout(() => errorElement.remove(), 3000);
+}
+
+function showMessage(message) {
+  const messageElement = document.createElement('div');
+  messageElement.className = 'info-message';
+  messageElement.textContent = message;
+  
+  document.body.appendChild(messageElement);
+  setTimeout(() => messageElement.remove(), 3000);
+}
+
+// Load merge requests function
 async function loadMergeRequests() {
   try {
     mergeRequestsContainer.innerHTML = '<div class="loading">Loading merge requests...</div>';
@@ -111,7 +417,6 @@ async function loadMergeRequests() {
       return;
     }
     
-    // Clear the container
     mergeRequestsContainer.innerHTML = '';
     
     // Count by role
@@ -169,20 +474,16 @@ async function loadMergeRequests() {
       
       // Add click handler to load files
       mrElement.addEventListener('click', async (event) => {
-        // Don't trigger if clicking on the GitLab link
         if (event.target.classList.contains('external-link')) {
           return;
         }
         
-        // Remove selected class from all MRs
         document.querySelectorAll('.mr-card').forEach(el => {
           el.classList.remove('selected');
         });
         
-        // Add selected class to clicked MR
         mrElement.classList.add('selected');
         
-        // Load files for this MR
         currentMergeRequest = mr;
         await loadMergeRequestFiles(mr.iid, mr.project_id);
       });
@@ -195,326 +496,6 @@ async function loadMergeRequests() {
   }
 }
 
-// Load files for a merge request
-async function loadMergeRequestFiles(mergeRequestId, projectId) {
-  try {
-    fileListContainer.innerHTML = '<div class="loading">Loading files...</div>';
-    selectedFilesContainer.innerHTML = '';
-    selectedFiles = [];
-    
-    const files = await window.api.getMergeRequestChanges(mergeRequestId, projectId);
-    
-    if (files.length === 0) {
-      fileListContainer.innerHTML = '<div class="empty-state">No files changed in this merge request</div>';
-      return;
-    }
-    
-    // Clear the container
-    fileListContainer.innerHTML = '';
-    
-    // Add header with count and select all option
-    const headerElement = document.createElement('div');
-    headerElement.className = 'file-list-header';
-    
-    const countElement = document.createElement('span');
-    countElement.textContent = `${files.length} changed file${files.length > 1 ? 's' : ''}`;
-    
-    const selectAllContainer = document.createElement('div');
-    selectAllContainer.className = 'select-all-container';
-    
-    const selectAllCheckbox = document.createElement('input');
-    selectAllCheckbox.type = 'checkbox';
-    selectAllCheckbox.id = 'select-all-files';
-    
-    const selectAllLabel = document.createElement('label');
-    selectAllLabel.htmlFor = 'select-all-files';
-    selectAllLabel.textContent = 'Select All';
-    
-    selectAllContainer.appendChild(selectAllCheckbox);
-    selectAllContainer.appendChild(selectAllLabel);
-    
-    headerElement.appendChild(countElement);
-    headerElement.appendChild(selectAllContainer);
-    fileListContainer.appendChild(headerElement);
-    
-    // Group files by status (new, modified, deleted)
-    const newFiles = [];
-    const modifiedFiles = [];
-    const deletedFiles = [];
-    
-    files.forEach(file => {
-      if (file.new_file) {
-        newFiles.push(file);
-      } else if (file.deleted_file) {
-        deletedFiles.push(file);
-      } else {
-        modifiedFiles.push(file);
-      }
-    });
-    
-    // Function to create a file section
-    const createFileSection = (title, files, className) => {
-      if (files.length === 0) return;
-      
-      const sectionElement = document.createElement('div');
-      sectionElement.className = 'file-section';
-      
-      const titleElement = document.createElement('div');
-      titleElement.className = 'file-section-title';
-      titleElement.textContent = `${title} (${files.length})`;
-      sectionElement.appendChild(titleElement);
-      
-      files.forEach(file => {
-        const fileElement = document.createElement('div');
-        fileElement.className = `file-item ${className}`;
-        
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'file-checkbox';
-        checkbox.id = `file-${file.new_path || file.old_path}`;
-        checkbox.dataset.path = file.new_path || file.old_path;
-        
-        const label = document.createElement('label');
-        label.htmlFor = checkbox.id;
-        label.className = 'file-path';
-        label.textContent = file.new_path || file.old_path;
-        
-        // Handle checkbox change
-        checkbox.addEventListener('change', () => {
-          if (checkbox.checked) {
-            selectedFiles.push(file);
-          } else {
-            selectedFiles = selectedFiles.filter(f => 
-              (f.new_path || f.old_path) !== (file.new_path || file.old_path)
-            );
-          }
-          
-          updateSelectedFiles();
-          updateSelectAllCheckbox();
-        });
-        
-        fileElement.appendChild(checkbox);
-        fileElement.appendChild(label);
-        sectionElement.appendChild(fileElement);
-      });
-      
-      fileListContainer.appendChild(sectionElement);
-    };
-    
-    // Create sections for each file type
-    createFileSection('Added', newFiles, 'new');
-    createFileSection('Modified', modifiedFiles, 'modified');
-    createFileSection('Deleted', deletedFiles, 'deleted');
-    
-    // Handle select all functionality
-    selectAllCheckbox.addEventListener('change', () => {
-      const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-      
-      fileCheckboxes.forEach(checkbox => {
-        checkbox.checked = selectAllCheckbox.checked;
-        
-        // Get the file path
-        const filePath = checkbox.dataset.path;
-        
-        // Find the corresponding file
-        const file = files.find(f => (f.new_path || f.old_path) === filePath);
-        
-        if (file) {
-          if (selectAllCheckbox.checked) {
-            // Add to selected files if not already there
-            if (!selectedFiles.some(f => (f.new_path || f.old_path) === filePath)) {
-              selectedFiles.push(file);
-            }
-          } else {
-            // Remove from selected files
-            selectedFiles = selectedFiles.filter(f => 
-              (f.new_path || f.old_path) !== filePath
-            );
-          }
-        }
-      });
-      
-      updateSelectedFiles();
-    });
-    
-    // Function to update the select all checkbox state
-    function updateSelectAllCheckbox() {
-      const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-      const checkedCount = document.querySelectorAll('.file-checkbox:checked').length;
-      
-      if (checkedCount === 0) {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = false;
-      } else if (checkedCount === fileCheckboxes.length) {
-        selectAllCheckbox.checked = true;
-        selectAllCheckbox.indeterminate = false;
-      } else {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = true;
-      }
-    }
-    
-  } catch (error) {
-    fileListContainer.innerHTML = '<div class="error">Failed to load files</div>';
-    console.error(error);
-  }
-}
-
-// Update the selected files display
-function updateSelectedFiles() {
-  selectedFilesContainer.innerHTML = '';
-  
-  if (selectedFiles.length === 0) {
-    selectedFilesContainer.innerHTML = '<p class="no-selection">No files selected</p>';
-    return;
-  }
-  
-  const headerElement = document.createElement('div');
-  headerElement.className = 'selected-files-header';
-  
-  const heading = document.createElement('h3');
-  heading.textContent = 'Selected Files';
-  
-  const countElement = document.createElement('span');
-  countElement.className = 'selected-count';
-  countElement.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`;
-  
-  const clearButton = document.createElement('button');
-  clearButton.className = 'clear-selected';
-  clearButton.textContent = 'Clear Selection';
-  clearButton.addEventListener('click', () => {
-    // Uncheck all checkboxes
-    document.querySelectorAll('.file-checkbox').forEach(checkbox => {
-      checkbox.checked = false;
-    });
-    
-    // Update select all checkbox
-    const selectAllCheckbox = document.getElementById('select-all-files');
-    if (selectAllCheckbox) {
-      selectAllCheckbox.checked = false;
-      selectAllCheckbox.indeterminate = false;
-    }
-    
-    // Clear selected files
-    selectedFiles = [];
-    updateSelectedFiles();
-  });
-  
-  headerElement.appendChild(heading);
-  headerElement.appendChild(countElement);
-  headerElement.appendChild(clearButton);
-  selectedFilesContainer.appendChild(headerElement);
-  
-  // Group files by type
-  const newFiles = selectedFiles.filter(file => file.new_file);
-  const modifiedFiles = selectedFiles.filter(file => !file.new_file && !file.deleted_file);
-  const deletedFiles = selectedFiles.filter(file => file.deleted_file);
-  
-  // Create a file list element
-  const fileListElement = document.createElement('div');
-  fileListElement.className = 'selected-files-list';
-  
-  // Helper function to create file type sections
-  const createTypeSection = (files, className, icon) => {
-    if (files.length === 0) return;
-    
-    files.forEach(file => {
-      const fileElement = document.createElement('div');
-      fileElement.className = `selected-file ${className}`;
-      
-      const iconElement = document.createElement('span');
-      iconElement.className = 'file-icon';
-      iconElement.textContent = icon;
-      
-      const pathElement = document.createElement('span');
-      pathElement.className = 'file-path';
-      pathElement.textContent = file.new_path || file.old_path;
-      
-      const removeButton = document.createElement('button');
-      removeButton.className = 'remove-file';
-      removeButton.innerHTML = '&times;';
-      removeButton.title = 'Remove from selection';
-      removeButton.addEventListener('click', () => {
-        // Remove from selected files
-        selectedFiles = selectedFiles.filter(f => 
-          (f.new_path || f.old_path) !== (file.new_path || file.old_path)
-        );
-        
-        // Uncheck the corresponding checkbox
-        const checkbox = document.querySelector(`#file-${file.new_path || file.old_path}`);
-        if (checkbox) {
-          checkbox.checked = false;
-        }
-        
-        // Update select all checkbox
-        const selectAllCheckbox = document.getElementById('select-all-files');
-        if (selectAllCheckbox) {
-          const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-          const checkedCount = document.querySelectorAll('.file-checkbox:checked').length;
-          
-          selectAllCheckbox.checked = checkedCount === fileCheckboxes.length;
-          selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < fileCheckboxes.length;
-        }
-        
-        updateSelectedFiles();
-      });
-      
-      fileElement.appendChild(iconElement);
-      fileElement.appendChild(pathElement);
-      fileElement.appendChild(removeButton);
-      fileListElement.appendChild(fileElement);
-    });
-  };
-  
-  // Create sections for each file type
-  createTypeSection(newFiles, 'new', '+');
-  createTypeSection(modifiedFiles, 'modified', '~');
-  createTypeSection(deletedFiles, 'deleted', '-');
-  
-  selectedFilesContainer.appendChild(fileListElement);
-  
-  // Add Review button
-  const reviewButtonContainer = document.createElement('div');
-  reviewButtonContainer.className = 'review-button-container';
-  
-  const reviewButton = document.createElement('button');
-  reviewButton.className = 'review-btn';
-  reviewButton.textContent = 'Review Selected Files';
-  reviewButton.addEventListener('click', () => {
-    // Save selected files data to localStorage
-    localStorage.setItem('selectedFiles', JSON.stringify(selectedFiles));
-    
-    // Save current merge request info if available
-    if (currentMergeRequest) {
-      localStorage.setItem('currentMergeRequest', JSON.stringify(currentMergeRequest));
-    }
-    
-    // Navigate to review page
-    window.location.href = 'review.html';
-  });
-  
-  // Disable button if no files selected
-  if (selectedFiles.length === 0) {
-    reviewButton.disabled = true;
-  }
-  
-  reviewButtonContainer.appendChild(reviewButton);
-  selectedFilesContainer.appendChild(reviewButtonContainer);
-}
-
-// Helper function to show errors
-function showError(message) {
-  const errorElement = document.createElement('div');
-  errorElement.className = 'error-message';
-  errorElement.textContent = message;
-  
-  document.body.appendChild(errorElement);
-  
-  setTimeout(() => {
-    errorElement.remove();
-  }, 3000);
-}
-
 // GitHub authorization functions
 async function checkGitHubAuthStatus() {
   try {
@@ -525,7 +506,6 @@ async function checkGitHubAuthStatus() {
       githubAuthStatus.classList.add('authorized');
       githubAuthBtn.textContent = 'Reauthorize GitHub';
       
-      // Show expiration date if available
       if (authStatus.expiresAt) {
         const expiresDate = new Date(authStatus.expiresAt);
         const formatter = new Intl.DateTimeFormat(undefined, {
@@ -546,47 +526,32 @@ async function checkGitHubAuthStatus() {
   }
 }
 
-// GitHub auth button
 githubAuthBtn.addEventListener('click', async () => {
   try {
-    // Clear previous flow UI
     githubDeviceFlow.classList.remove('hidden');
     authProgress.classList.add('hidden');
     
-    // Get device code
     const deviceCode = await window.api.githubStartAuth();
     
-    // Show device code to user
     verificationUrl.href = deviceCode.verification_uri;
     userCodeElement.textContent = deviceCode.user_code;
     
-    // Show waiting indicator
     authProgress.classList.remove('hidden');
     
-    // Start polling for token
     const result = await window.api.githubPollToken(deviceCode.device_code, deviceCode.interval);
     
     if (result.success) {
-      // Update status
       await checkGitHubAuthStatus();
-      
-      // Hide device flow UI
       githubDeviceFlow.classList.add('hidden');
-      
-      // Show success message
       showMessage('GitHub authorization successful!');
     }
   } catch (error) {
-    // Hide device flow UI
     githubDeviceFlow.classList.add('hidden');
-    
-    // Show error
     showError('GitHub authorization failed: ' + (error.message || 'Unknown error'));
     console.error('GitHub auth error:', error);
   }
 });
 
-// Copy code button
 copyCodeBtn.addEventListener('click', () => {
   const code = userCodeElement.textContent;
   if (code) {
@@ -594,16 +559,3 @@ copyCodeBtn.addEventListener('click', () => {
     showMessage('Code copied to clipboard!');
   }
 });
-
-// Helper function to show a temporary message
-function showMessage(message) {
-  const messageElement = document.createElement('div');
-  messageElement.className = 'info-message';
-  messageElement.textContent = message;
-  
-  document.body.appendChild(messageElement);
-  
-  setTimeout(() => {
-    messageElement.remove();
-  }, 3000);
-}

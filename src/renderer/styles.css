@@ -63,6 +63,18 @@ main {
   font-size: 1.2rem;
   border-bottom: 1px solid #eee;
   padding-bottom: 10px;
+}
+
+.file-filter {
+  margin-bottom: 15px;
+}
+
+.file-filter input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
