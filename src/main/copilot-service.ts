@@ -178,10 +178,14 @@ export async function reviewCode(
     // Create messages based on review level
     const messages: Message[] = [];
     
-    // Add system message
+    // Get config for language preference
+    const config = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'config.json'), 'utf8'));
+    const language = config.reviewLanguage || 'english';
+
+    // Add system message with language preference
     messages.push({
       role: 'system',
-      content: getSystemPrompt(reviewLevel)
+      content: getSystemPrompt(reviewLevel, language)
     });
     
     // Add files content message
@@ -241,7 +245,7 @@ export async function reviewCode(
 }
 
 // Helper function to create system prompt based on review level
-function getSystemPrompt(reviewLevel: 'light' | 'medium' | 'expert'): string {
+function getSystemPrompt(reviewLevel: 'light' | 'medium' | 'expert', language: string): string {
   let basePrompt = `You are an expert code reviewer specializing in identifying issues in code changes. Review the following diffs and provide specific, actionable feedback.
 
 Your task:
@@ -250,7 +254,7 @@ Your task:
 3. For each issue, specify the exact file path and line number where the issue occurs
 4. Categorize each issue as "error" (bugs, security issues), "warning" (code smells, maintainability issues), or "info" (style, best practices)
 
-Format your response as a JSON array of objects with the following structure:
+Format your response as a JSON array of objects, providing review comments in ${language === 'french' ? 'French' : 'English'} language, with the following structure:
 [
   {
     "filePath": "path/to/file.ext",

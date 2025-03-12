@@ -5,10 +5,10 @@ import { MergeRequest, ChangedFile } from '../main/gitlab-service';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('api', {
   // Config related functions
-  getConfig: (): Promise<{ gitlabUrl: string; gitlabToken: string }> => 
+  getConfig: (): Promise<{ gitlabUrl: string; gitlabToken: string, reviewLanguage: string }> => 
     ipcRenderer.invoke('get-config'),
     
-  saveConfig: (config: { gitlabUrl: string; gitlabToken: string }): Promise<boolean> => 
+  saveConfig: (config: { gitlabUrl: string; gitlabToken: string, reviewLanguage: string }): Promise<boolean> => 
     ipcRenderer.invoke('save-config', config),
   
   // GitLab API related functions

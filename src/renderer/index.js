@@ -322,9 +322,15 @@ async function loadMergeRequestFiles(mergeRequestId, projectId) {
 // Load config when app starts
 window.addEventListener('DOMContentLoaded', async () => {
   try {
+    const languageSelect = document.getElementById('review-language');
     const config = await window.api.getConfig();
-    gitlabUrlInput.value = config.gitlabUrl;
-    gitlabTokenInput.value = config.gitlabToken;
+    
+    // Initialize form values
+    gitlabUrlInput.value = config.gitlabUrl || '';
+    gitlabTokenInput.value = config.gitlabToken || '';
+    if (languageSelect) {
+      languageSelect.value = config.reviewLanguage || 'english';
+    }
     
     await checkGitHubAuthStatus();
     
@@ -359,9 +365,11 @@ settingsForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   
   try {
+    const languageSelect = document.getElementById('review-language');
     await window.api.saveConfig({
       gitlabUrl: gitlabUrlInput.value,
-      gitlabToken: gitlabTokenInput.value
+      gitlabToken: gitlabTokenInput.value,
+      reviewLanguage: languageSelect ? languageSelect.value : 'english'
     });
     
     settingsModal.style.display = 'none';

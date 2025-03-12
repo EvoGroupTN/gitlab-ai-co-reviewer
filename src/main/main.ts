@@ -11,6 +11,7 @@ import { Logger } from './logger';
 interface StoreSchema {
   gitlabUrl: string;
   gitlabToken: string;
+  reviewLanguage: string;
 }
 
 // Initialize the store
@@ -23,6 +24,10 @@ const store = new Store<StoreSchema>({
     gitlabToken: {
       type: 'string',
       default: ''
+    },
+    reviewLanguage: {
+      type: 'string',
+      default: 'english'
     }
   }
 });
@@ -99,13 +104,15 @@ app.on('activate', () => {
 ipcMain.handle('get-config', () => {
   return {
     gitlabUrl: store.get('gitlabUrl'),
-    gitlabToken: store.get('gitlabToken')
+    gitlabToken: store.get('gitlabToken'),
+    reviewLanguage: store.get('reviewLanguage')
   };
 });
 
-ipcMain.handle('save-config', (_, config: { gitlabUrl: string; gitlabToken: string }) => {
+ipcMain.handle('save-config', (_, config: { gitlabUrl: string; gitlabToken: string, reviewLanguage: string }) => {
   store.set('gitlabUrl', config.gitlabUrl);
   store.set('gitlabToken', config.gitlabToken);
+  store.set('reviewLanguage', config.reviewLanguage);
   
   // Re-initialize GitLab service with new credentials
   gitlabService = new GitLabService(config.gitlabUrl, config.gitlabToken);
