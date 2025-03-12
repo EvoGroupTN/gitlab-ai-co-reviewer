@@ -235,7 +235,7 @@ export async function getAvailableModels(
     }
 
     const data = response.data as ModelsList;
-    return data.data.filter(model => model.model_picker_enabled === true).map(model => model.name);
+    return data.data.filter(model => model.model_picker_enabled === true).map(model => model.id);
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
       const status = error.response.status;
@@ -270,6 +270,7 @@ export async function reviewCode(
     // Get config for language preference
     const config = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'config.json'), 'utf8'));
     const language = config.reviewLanguage || 'english';
+    const copilotModel = config.copilotModel || 'claude-3.5-sonnet';
 
     // Add system message with language preference
     messages.push({
@@ -286,7 +287,7 @@ export async function reviewCode(
     // Prepare Copilot API request
     const request: CopilotRequest = {
       intent: false,
-      model: 'claude-3.5-sonnet',
+      model: copilotModel,
       temperature: 0.1,
       top_p: 1,
       n: 1,

@@ -322,6 +322,19 @@ async function loadMergeRequestFiles(mergeRequestId, projectId) {
 // Load config when app starts
 window.addEventListener('DOMContentLoaded', async () => {
   try {
+    // Get available Copilot models
+    const models = await window.api.getCopilotModels();
+    
+    // Populate model select
+    const modelSelect = document.getElementById('copilot-model');
+    modelSelect.innerHTML = ''; // Clear loading option
+    models.forEach(model => {
+      const option = document.createElement('option');
+      option.value = model;
+      option.textContent = model;
+      modelSelect.appendChild(option);
+    });
+
     const languageSelect = document.getElementById('review-language');
     const config = await window.api.getConfig();
     
@@ -331,6 +344,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (languageSelect) {
       languageSelect.value = config.reviewLanguage || 'english';
     }
+    modelSelect.value = config.copilotModel || models[0] || 'claude-3.5-sonnet';
     
     await checkGitHubAuthStatus();
     
@@ -369,7 +383,8 @@ settingsForm.addEventListener('submit', async (event) => {
     await window.api.saveConfig({
       gitlabUrl: gitlabUrlInput.value,
       gitlabToken: gitlabTokenInput.value,
-      reviewLanguage: languageSelect ? languageSelect.value : 'english'
+      reviewLanguage: languageSelect ? languageSelect.value : 'english',
+      copilotModel: document.getElementById('copilot-model').value
     });
     
     settingsModal.style.display = 'none';

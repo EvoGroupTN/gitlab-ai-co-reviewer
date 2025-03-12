@@ -12,6 +12,7 @@ interface StoreSchema {
   gitlabUrl: string;
   gitlabToken: string;
   reviewLanguage: string;
+  copilotModel: string;
 }
 
 // Initialize the store
@@ -28,6 +29,10 @@ const store = new Store<StoreSchema>({
     reviewLanguage: {
       type: 'string',
       default: 'english'
+    },
+    copilotModel: {
+      type: 'string',
+      default: 'claude-3.5-sonnet'
     }
   }
 });
@@ -105,14 +110,16 @@ ipcMain.handle('get-config', () => {
   return {
     gitlabUrl: store.get('gitlabUrl'),
     gitlabToken: store.get('gitlabToken'),
-    reviewLanguage: store.get('reviewLanguage')
+    reviewLanguage: store.get('reviewLanguage'),
+    copilotModel: store.get('copilotModel')
   };
 });
 
-ipcMain.handle('save-config', (_, config: { gitlabUrl: string; gitlabToken: string, reviewLanguage: string }) => {
+ipcMain.handle('save-config', (_, config: { gitlabUrl: string; gitlabToken: string, reviewLanguage: string, copilotModel: string }) => {
   store.set('gitlabUrl', config.gitlabUrl);
   store.set('gitlabToken', config.gitlabToken);
   store.set('reviewLanguage', config.reviewLanguage);
+  store.set('copilotModel', config.copilotModel);
   
   // Re-initialize GitLab service with new credentials
   gitlabService = new GitLabService(config.gitlabUrl, config.gitlabToken);
@@ -181,6 +188,20 @@ ipcMain.handle('post-merge-request-comments', async (_, projectId: number, merge
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error(`Failed to post comments to merge request ${mergeRequestId}`, error instanceof Error ? error : new Error(errorMessage));
     dialog.showErrorBox('Error Posting Comments', errorMessage);
+    throw error;
+  }
+});
+
+// Copilot models handler
+ipcMain.handle('get-copilot-models', async () => {
+  try {
+    logger.info('Fetching available Copilot models');
+    const models = await CopilotService.getAvailableModels();
+    logger.info(`Successfully fetched ${models.length} Copilot models`);
+    return models;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Failed to fetch Copilot models', error instanceof Error ? error : new Error(errorMessage));
     throw error;
   }
 });

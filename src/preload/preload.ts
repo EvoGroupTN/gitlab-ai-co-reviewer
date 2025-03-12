@@ -5,10 +5,10 @@ import { MergeRequest, ChangedFile } from '../main/gitlab-service';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('api', {
   // Config related functions
-  getConfig: (): Promise<{ gitlabUrl: string; gitlabToken: string, reviewLanguage: string }> => 
+  getConfig: (): Promise<{ gitlabUrl: string; gitlabToken: string, reviewLanguage: string, copilotModel: string }> => 
     ipcRenderer.invoke('get-config'),
     
-  saveConfig: (config: { gitlabUrl: string; gitlabToken: string, reviewLanguage: string }): Promise<boolean> => 
+  saveConfig: (config: { gitlabUrl: string; gitlabToken: string, reviewLanguage: string, copilotModel: string }): Promise<boolean> => 
     ipcRenderer.invoke('save-config', config),
   
   // GitLab API related functions
@@ -48,7 +48,7 @@ contextBridge.exposeInMainWorld('api', {
     clipboard.writeText(text);
   },
   
-  // Code review function
+  // Code review functions
   reviewCode: (
     files: Array<{ 
       path: string; 
@@ -57,5 +57,9 @@ contextBridge.exposeInMainWorld('api', {
       isDeleted?: boolean;
     }>, 
     reviewLevel: 'light' | 'medium' | 'expert'
-  ) => ipcRenderer.invoke('review-code', files, reviewLevel)
+  ) => ipcRenderer.invoke('review-code', files, reviewLevel),
+
+  // Get available Copilot models
+  getCopilotModels: (): Promise<string[]> =>
+    ipcRenderer.invoke('get-copilot-models')
 });
