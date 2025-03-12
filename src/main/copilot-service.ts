@@ -3,6 +3,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import axios from 'axios';
 import * as GitHubAuth from './github-auth';
+import { Logger } from './logger';
+
+const logger = Logger.getInstance();
 
 // Interfaces for Copilot API
 interface Message {
@@ -65,8 +68,7 @@ function getCopilotToken(): { token: string; expiresAt: Date } | null {
     }
     return null;
   } catch (error) {
-    console.error('Error loading Copilot token:', 
-      error instanceof Error ? error.message : 'Unknown error');
+    logger.error('Error loading Copilot token:', error instanceof Error ? error : new Error('Unknown error'));
     return null;
   }
 }
@@ -82,8 +84,7 @@ function saveCopilotToken(token: string, expiresAt: string): void {
     
     fs.writeFileSync(getCopilotTokenPath(), JSON.stringify(tokenData, null, 2));
   } catch (error) {
-    console.error('Error saving Copilot token:', 
-      error instanceof Error ? error.message : 'Unknown error');
+    logger.error('Error saving Copilot token:', error instanceof Error ? error : new Error('Unknown error'));
     throw error;
   }
 }
@@ -96,8 +97,7 @@ export function clearCopilotToken(): void {
       fs.unlinkSync(tokenPath);
     }
   } catch (error) {
-    console.error('Error clearing Copilot token:', 
-      error instanceof Error ? error.message : 'Unknown error');
+    logger.error('Error clearing Copilot token:', error instanceof Error ? error : new Error('Unknown error'));
   }
 }
 
@@ -221,9 +221,8 @@ export async function reviewCode(
       throw new Error('Copilot returned an empty response');
     }
     
-    // Log the full response to terminal
-    console.log('Copilot API response:');
-    console.log(JSON.stringify(data, null, 2));
+    // Log the full response
+    logger.debug('Copilot API response:\n' + JSON.stringify(data, null, 2));
     
     // Parse comments from the response
     const comments = parseReviewComments(content, files);
@@ -341,10 +340,10 @@ function parseReviewComments(
     }
     
     // If no JSON array found, return an empty array
-    console.warn('Could not parse Copilot response as JSON array. Raw response:', content);
+    logger.warn('Could not parse Copilot response as JSON array. Raw response: ' + content);
     return [];
   } catch (error) {
-    console.error('Error parsing Copilot review comments:', error);
+    logger.error('Error parsing Copilot review comments:', error instanceof Error ? error : new Error('Unknown error'));
     return [];
   }
 }

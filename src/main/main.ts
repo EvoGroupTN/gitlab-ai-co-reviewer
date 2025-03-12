@@ -5,6 +5,7 @@ import Store from 'electron-store';
 import { GitLabService } from './gitlab-service';
 import * as GitHubAuth from './github-auth';
 import * as CopilotService from './copilot-service';
+import { Logger } from './logger';
 
 // Define the store schema
 interface StoreSchema {
@@ -29,7 +30,11 @@ const store = new Store<StoreSchema>({
 let mainWindow: BrowserWindow | null = null;
 let gitlabService: GitLabService | null = null;
 
+// Initialize logger
+const logger = Logger.getInstance();
+
 function createWindow() {
+  logger.info('Creating main application window');
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -59,7 +64,10 @@ function createWindow() {
   const token = store.get('gitlabToken');
   const gitlabUrl = store.get('gitlabUrl');
   if (token) {
+    logger.info('Initializing GitLab service');
     gitlabService = new GitLabService(gitlabUrl, token);
+  } else {
+    logger.info('No GitLab token found, skipping service initialization');
   }
 
   // Emitted when the window is closed
@@ -69,7 +77,10 @@ function createWindow() {
 }
 
 // This method will be called when Electron has finished initialization
-app.on('ready', createWindow);
+app.on('ready', () => {
+  logger.info('Application ready, creating window');
+  createWindow();
+});
 
 // Quit when all windows are closed
 app.on('window-all-closed', () => {
@@ -104,13 +115,19 @@ ipcMain.handle('save-config', (_, config: { gitlabUrl: string; gitlabToken: stri
 
 ipcMain.handle('get-assigned-merge-requests', async () => {
   if (!gitlabService) {
-    throw new Error('GitLab service not initialized. Please set your GitLab token.');
+    const error = new Error('GitLab service not initialized. Please set your GitLab token.');
+    logger.error('Failed to get merge requests - service not initialized', error);
+    throw error;
   }
   
   try {
-    return await gitlabService.getAssignedMergeRequests();
+    logger.info('Fetching assigned merge requests');
+    const requests = await gitlabService.getAssignedMergeRequests();
+    logger.info(`Successfully fetched ${requests.length} merge requests`);
+    return requests;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Failed to fetch merge requests', error instanceof Error ? error : new Error(errorMessage));
     dialog.showErrorBox('Error Fetching Merge Requests', errorMessage);
     throw error;
   }
@@ -118,15 +135,19 @@ ipcMain.handle('get-assigned-merge-requests', async () => {
 
 ipcMain.handle('get-merge-request-changes', async (_, mergeRequestId: number, projectId: number) => {
   if (!gitlabService) {
-    throw new Error('GitLab service not initialized. Please set your GitLab token.');
+    const error = new Error('GitLab service not initialized. Please set your GitLab token.');
+    logger.error('Failed to get merge request changes - service not initialized', error);
+    throw error;
   }
   
   try {
+    logger.info(`Fetching changes for merge request ${mergeRequestId} in project ${projectId}`);
     const result = await gitlabService.getMergeRequestChanges(projectId, mergeRequestId);
-    // Just return the changes to maintain compatibility with existing code
+    logger.info(`Successfully fetched changes for merge request ${mergeRequestId}`);
     return result.changes;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(`Failed to fetch changes for merge request ${mergeRequestId}`, error instanceof Error ? error : new Error(errorMessage));
     dialog.showErrorBox('Error Fetching Changes', errorMessage);
     throw error;
   }
@@ -139,15 +160,19 @@ ipcMain.handle('post-merge-request-comments', async (_, projectId: number, merge
   diffType: 'NUL' | 'ADD' | 'DEL';
 }>) => {
   if (!gitlabService) {
-    throw new Error('GitLab service not initialized. Please set your GitLab token.');
+    const error = new Error('GitLab service not initialized. Please set your GitLab token.');
+    logger.error('Failed to post merge request comments - service not initialized', error);
+    throw error;
   }
   
   try {
-    // Pass comments directly to the service, already in the correct format
+    logger.info(`Posting ${comments.length} comments to merge request ${mergeRequestId}`);
     await gitlabService.postMergeRequestComments(projectId, mergeRequestId, comments);
+    logger.info(`Successfully posted comments to merge request ${mergeRequestId}`);
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logger.error(`Failed to post comments to merge request ${mergeRequestId}`, error instanceof Error ? error : new Error(errorMessage));
     dialog.showErrorBox('Error Posting Comments', errorMessage);
     throw error;
   }
@@ -196,7 +221,9 @@ ipcMain.handle('github-clear-token', () => {
 // Copilot code review handler
 ipcMain.handle('review-code', async (_, files, reviewLevel) => {
   try {
+    logger.info(`Starting code review with level: ${reviewLevel}`);
     const comments = await CopilotService.reviewCode(files, reviewLevel);
+    logger.info(`Successfully completed code review with ${comments.length} comments`);
     return { success: true, comments };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -205,9 +232,11 @@ ipcMain.handle('review-code', async (_, files, reviewLevel) => {
     if (errorMessage.includes('token expired') || 
         errorMessage.includes('invalid') ||
         errorMessage.includes('authorize')) {
+      logger.error('GitHub/Copilot authentication error', error instanceof Error ? error : new Error(errorMessage));
       dialog.showErrorBox('Authorization Error', 
         'GitHub or Copilot token is invalid or expired. Please reauthorize with GitHub.');
     } else {
+      logger.error('Code review error', error instanceof Error ? error : new Error(errorMessage));
       dialog.showErrorBox('Code Review Error', errorMessage);
     }
     

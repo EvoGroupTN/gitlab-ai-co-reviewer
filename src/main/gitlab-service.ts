@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { Logger } from './logger';
 
 // Define interfaces for GitLab API responses
 export interface MergeRequest {
@@ -52,7 +53,10 @@ export interface MergeRequestChanges {
 export class GitLabService {
   private api: AxiosInstance;
 
+  private logger = Logger.getInstance();
+
   constructor(baseURL: string, private token: string) {
+    this.logger.info(`Initializing GitLab service with base URL: ${baseURL}`);
     this.api = axios.create({
       baseURL: `${baseURL}/api/v4`,
       headers: {
@@ -230,8 +234,8 @@ export class GitLabService {
       for (const comment of comments) {
         let newLine = null;
         let oldLine = null;
-        let newPath = comment.filePath;
-        let oldPath = comment.filePath;
+        const newPath = comment.filePath;
+        const oldPath = comment.filePath;
         
         // Set line numbers based on diffType
         switch (comment.diffType) {
@@ -262,19 +266,18 @@ export class GitLabService {
           }
         };
         
-        // Log the API call to the terminal
-        console.log(`Posting comment to GitLab API: 
+        this.logger.debug(`Posting comment to GitLab API: 
 URL: /projects/${projectId}/merge_requests/${mergeRequestIid}/discussions
-Data:`, JSON.stringify(requestData, null, 2));
+Data: ${JSON.stringify(requestData, null, 2)}`);
         
         await this.api.post(`/projects/${projectId}/merge_requests/${mergeRequestIid}/discussions`, requestData);
+        this.logger.debug(`Successfully posted comment to merge request ${mergeRequestIid}`);
       }
       
       return true;
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        // Log the error details
-        console.error('GitLab API Error:', error.response?.data || error.message);
+        this.logger.error('GitLab API Error', error);
         const errorMessage = error.response?.data?.message || error.message;
         throw new Error(`Failed to post comments: ${errorMessage}`);
       }

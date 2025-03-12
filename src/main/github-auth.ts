@@ -2,6 +2,9 @@ import { app } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import axios from 'axios';
+import { Logger } from './logger';
+
+const logger = Logger.getInstance();
 
 // GitHub Device Flow response interfaces
 interface DeviceCodeResponse {
@@ -59,7 +62,8 @@ export async function getDeviceCode(): Promise<DeviceCodeResponse> {
 export async function pollForToken(deviceCode: string, interval: number): Promise<string> {
   const pollInterval = interval * 1000; // Convert to milliseconds
   
-  while (true) {
+  let isPolling = true;
+  while (isPolling) {
     // Wait for the specified interval before polling
     await new Promise(resolve => setTimeout(resolve, pollInterval));
     
@@ -84,13 +88,14 @@ export async function pollForToken(deviceCode: string, interval: number): Promis
       // Check for error responses
       if (data.error) {
         if (data.error === 'authorization_pending') {
-          // Still waiting for user to authorize - continue polling
-          continue;
+        // Still waiting for user to authorize - continue polling
+        continue;
         } else if (data.error === 'slow_down') {
           // GitHub is asking us to slow down polling - increase interval and continue
           await new Promise(resolve => setTimeout(resolve, 5000)); // Additional delay
           continue;
         } else if (data.error === 'expired_token') {
+          isPolling = false;
           throw new Error('Device code has expired. Please restart the authorization process.');
         } else {
           throw new Error(`Authorization error: ${data.error_description || data.error}`);
@@ -100,6 +105,7 @@ export async function pollForToken(deviceCode: string, interval: number): Promis
       // If we got an access token, save it and return it
       if (data.access_token) {
         saveToken(data.access_token);
+        isPolling = false;
         return data.access_token;
       }
       
@@ -110,11 +116,14 @@ export async function pollForToken(deviceCode: string, interval: number): Promis
         throw error; // Propagate expiration error
       }
       // For other errors, wait and retry
-      console.error('Error during token polling:', 
-        error instanceof Error ? error.message : 'Unknown error');
+      logger.error('Error during token polling:', error instanceof Error ? error : new Error('Unknown error'));
       // Continue polling on error
     }
   }
+  
+  // This line should never be reached due to the logic above,
+  // but TypeScript needs an explicit return to be satisfied
+  throw new Error('Polling ended unexpectedly');
 }
 
 // Save access token to file
@@ -134,8 +143,7 @@ export function saveToken(token: string): void {
     
     fs.writeFileSync(getTokenPath(), JSON.stringify(tokenData, null, 2));
   } catch (error) {
-    console.error('Error saving GitHub token:', 
-      error instanceof Error ? error.message : 'Unknown error');
+    logger.error('Error saving GitHub token:', error instanceof Error ? error : new Error('Unknown error'));
     throw error;
   }
 }
@@ -153,8 +161,7 @@ export function getToken(): { token: string; expiresAt: Date } | null {
     }
     return null;
   } catch (error) {
-    console.error('Error loading GitHub token:', 
-      error instanceof Error ? error.message : 'Unknown error');
+    logger.error('Error loading GitHub token:', error instanceof Error ? error : new Error('Unknown error'));
     return null;
   }
 }
@@ -167,7 +174,6 @@ export function clearToken(): void {
       fs.unlinkSync(tokenPath);
     }
   } catch (error) {
-    console.error('Error clearing GitHub token:', 
-      error instanceof Error ? error.message : 'Unknown error');
+    logger.error('Error clearing GitHub token:', error instanceof Error ? error : new Error('Unknown error'));
   }
 }
