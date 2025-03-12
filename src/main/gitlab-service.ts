@@ -228,10 +228,8 @@ export class GitLabService {
       // Post each comment individually
       for (const comment of comments) {
         
-        // Generate line_code in the expected GitLab format
-        const lineCode = `${comment.filePath.replace(/\//g, '_')}_L${comment.lineNumber}`;
-        
-        // Using format directly from GitLab docs, with line_code added to position
+        // Using format directly from GitLab docs
+        // Comments on non-modified lines will be attached to closest modified lines
         const requestData = {
           body: comment.comment,
           position: {
@@ -240,9 +238,9 @@ export class GitLabService {
             head_sha: headSha,
             start_sha: startSha,
             new_path: comment.filePath,
-            old_path: comment.filePath,  // Use same path for old_path
             new_line: comment.lineNumber,
-            line_code: lineCode
+            old_path: comment.filePath,
+            old_line: comment.lineNumber
           }
         };
         
