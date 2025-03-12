@@ -44,6 +44,7 @@ interface ReviewComment {
   lineNumber: number;
   comment: string;
   severity: 'info' | 'warning' | 'error';
+  diffType: 'NUL' | 'ADD' | 'DEL';
 }
 
 // Path for storing Copilot token
@@ -254,12 +255,20 @@ Format your response as a JSON array of objects with the following structure:
 [
   {
     "filePath": "path/to/file.ext",
-    "lineNumber": 42,
     "comment": "Detailed explanation of the issue and how to fix it",
-    "severity": "error|warning|info"
+    "severity": "error|warning|info",
+    "lineNumber": 42,    // The real line number in the file
+    "diffType": "ADD"    // Use "ADD" for added/modified lines, "DEL" for deleted lines, "NUL" for unchanged lines
   },
   ...
-]`;
+]
+
+For each comment:
+- If it's on a newly added or modified line (line that starts with '+' in the diff), set diffType to "ADD"
+- If it's on an unmodified/existing line (line without '+' or '-' prefix in the diff), set diffType to "NUL"
+- If it's on a deleted line (line that starts with '-' in the diff), set diffType to "DEL"
+
+IMPORTANT: Always include the actual line number from the real file in the lineNumber field, not the diff line number.`;
 
   // Add level-specific instructions
   switch (reviewLevel) {

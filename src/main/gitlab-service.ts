@@ -213,8 +213,9 @@ export class GitLabService {
     mergeRequestIid: number, 
     comments: Array<{
       filePath: string;
-      lineNumber: number;
       comment: string;
+      lineNumber: number;
+      diffType: 'NUL' | 'ADD' | 'DEL';
     }>
   ): Promise<boolean> {
     try {
@@ -227,9 +228,26 @@ export class GitLabService {
       
       // Post each comment individually
       for (const comment of comments) {
+        let newLine = null;
+        let oldLine = null;
+        let newPath = comment.filePath;
+        let oldPath = comment.filePath;
         
-        // Using format directly from GitLab docs
-        // Comments on non-modified lines will be attached to closest modified lines
+        // Set line numbers based on diffType
+        switch (comment.diffType) {
+          case 'NUL': // Unchanged line - set both new and old
+            newLine = comment.lineNumber;
+            oldLine = comment.lineNumber;
+            break;
+          case 'ADD': // Added/modified line - set only new_line
+            newLine = comment.lineNumber;
+            break;
+          case 'DEL': // Deleted line - set only old_line
+            oldLine = comment.lineNumber;
+            break;
+        }
+        
+        // Using format directly from GitLab docs with mapped line numbers
         const requestData = {
           body: comment.comment,
           position: {
@@ -237,10 +255,10 @@ export class GitLabService {
             base_sha: baseSha,
             head_sha: headSha,
             start_sha: startSha,
-            new_path: comment.filePath,
-            new_line: comment.lineNumber,
-            old_path: comment.filePath,
-            old_line: comment.lineNumber
+            new_path: newPath,
+            new_line: newLine,
+            old_path: oldPath,
+            old_line: oldLine
           }
         };
         

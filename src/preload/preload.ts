@@ -23,8 +23,9 @@ contextBridge.exposeInMainWorld('api', {
     mergeRequestId: number, 
     comments: Array<{
       filePath: string;
-      lineNumber: number;
       comment: string;
+      lineNumber: number;
+      diffType: 'NUL' | 'ADD' | 'DEL';
     }>
   ): Promise<{ success: boolean }> => 
     ipcRenderer.invoke('post-merge-request-comments', projectId, mergeRequestId, comments),

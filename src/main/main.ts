@@ -134,14 +134,16 @@ ipcMain.handle('get-merge-request-changes', async (_, mergeRequestId: number, pr
 
 ipcMain.handle('post-merge-request-comments', async (_, projectId: number, mergeRequestId: number, comments: Array<{
   filePath: string;
-  lineNumber: number;
   comment: string;
+  lineNumber: number;
+  diffType: 'NUL' | 'ADD' | 'DEL';
 }>) => {
   if (!gitlabService) {
     throw new Error('GitLab service not initialized. Please set your GitLab token.');
   }
   
   try {
+    // Pass comments directly to the service, already in the correct format
     await gitlabService.postMergeRequestComments(projectId, mergeRequestId, comments);
     return { success: true };
   } catch (error) {

@@ -46,11 +46,14 @@ postCommentsButton.addEventListener('click', async () => {
   
   // Collect the selected comments
   const selectedComments = Array.from(selectedCommentElements).map(element => {
-    return {
+    const comment = {
       filePath: element.dataset.filePath,
+      comment: element.querySelector('.comment-text').textContent,
       lineNumber: parseInt(element.dataset.lineNumber, 10),
-      comment: element.querySelector('.comment-text').textContent
+      diffType: element.dataset.diffType
     };
+    
+    return comment;
   });
   
   // Confirm before posting
@@ -158,7 +161,10 @@ function renderReviewResults(comments) {
       const commentItem = document.createElement('li');
       commentItem.className = 'comment-item';
       commentItem.dataset.filePath = comment.filePath;
+      
+      // Add line number and diffType data attributes
       commentItem.dataset.lineNumber = comment.lineNumber;
+      commentItem.dataset.diffType = comment.diffType || 'NUL';
       
       const header = document.createElement('div');
       header.className = 'comment-header';
@@ -169,7 +175,9 @@ function renderReviewResults(comments) {
       
       const lineNumber = document.createElement('span');
       lineNumber.className = 'comment-line';
-      lineNumber.textContent = `Line ${comment.lineNumber}`;
+      
+      // Display the line number
+      lineNumber.textContent = comment.lineNumber !== undefined ? `Line ${comment.lineNumber}` : '';
       
       header.appendChild(severityBadge);
       header.appendChild(lineNumber);
