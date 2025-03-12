@@ -8,6 +8,60 @@ import { Logger } from './logger';
 const logger = Logger.getInstance();
 
 // Interfaces for Copilot API
+interface ModelsList {
+  data: Model[];
+  object: string;
+}
+
+interface Model {
+  capabilities: ModelCapabilities;
+  id: string;
+  model_picker_enabled: boolean;
+  name: string;
+  object: string;
+  preview: boolean;
+  vendor: string;
+  version: string;
+  policy?: ModelPolicy;
+}
+
+interface ModelCapabilities {
+  family: string;
+  limits: ModelLimits;
+  object: string;
+  supports: ModelSupports;
+  tokenizer: string;
+  type: string;
+}
+
+interface ModelLimits {
+  max_context_window_tokens?: number;
+  max_output_tokens?: number;
+  max_prompt_tokens?: number;
+  max_inputs?: number;
+  vision?: VisionLimits;
+}
+
+interface VisionLimits {
+  max_prompt_image_size: number;
+  max_prompt_images: number;
+  supported_media_types: string[];
+}
+
+interface ModelSupports {
+  streaming?: boolean;
+  tool_calls?: boolean;
+  parallel_tool_calls?: boolean;
+  vision?: boolean;
+  dimensions?: boolean;
+  structured_outputs?: boolean;
+}
+
+interface ModelPolicy {
+  state: string;
+  terms: string;
+}
+
 interface Message {
   role: 'system' | 'user';
   content: string;
@@ -159,6 +213,41 @@ async function getOrRefreshCopilotToken(githubToken?: string): Promise<string> {
     throw error;
   }
 }
+
+export async function getAvailableModels(
+  githubToken?: string
+): Promise<string[]> {
+  try {
+    // Get Copilot token
+    const copilotToken = await getOrRefreshCopilotToken(githubToken);
+
+    // Call Copilot API to get available models
+    const response = await axios.get('https://api.githubcopilot.com/models', {
+      headers: {
+        'Authorization': `Bearer ${copilotToken}`,
+        'Editor-Version': 'vscode/1.80.1',
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response || response.status !== 200) {
+      throw new Error(`Copilot API error: ${response?.statusText || 'Unknown error'}`);
+    }
+
+    const data = response.data as ModelsList;
+    return data.data.filter(model => model.model_picker_enabled === true).map(model => model.name);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      const status = error.response.status;
+      if (status === 401 || status === 403) {
+        clearCopilotToken();
+        throw new Error('Copilot token expired or invalid');
+      }
+    }
+    throw error;
+  }
+}
+
 
 // Generate review comments for code using Copilot
 export async function reviewCode(
