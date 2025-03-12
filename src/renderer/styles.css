@@ -17,12 +17,132 @@ body {
 }
 
 header {
-  background-color: #2684FF;
-  color: white;
-  padding: 15px;
+  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background-color: #f6f8fa;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+/* About Modal Styles */
+#about-modal .modal-content {
+  max-width: 500px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.about-content {
+  padding: 20px;
+}
+
+.about-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.profile-img {
+  width: 120px;
+  height: 120px;
+  border-radius: 60px;
+  margin-bottom: 15px;
+  border: 3px solid #fff;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.about-body {
+  text-align: center;
+}
+
+.about-body h3 {
+  margin: 0;
+  font-size: 24px;
+  color: #24292e;
+}
+
+.about-body .title {
+  color: #666;
+  margin: 5px 0 15px;
+  font-style: italic;
+}
+
+.about-body .description {
+  color: #444;
+  line-height: 1.5;
+  margin-bottom: 15px;
+}
+
+.about-body .version {
+  font-size: 0.8rem;
+  color: #666;
+  background: #f6f8fa;
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.about-body .features {
+  text-align: left;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px 20px;
+  margin-bottom: 20px;
+}
+
+.about-body .features h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.about-body .features ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.about-body .features li {
+  padding: 5px 0;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.links {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.github-link, .email-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #24292e;
+  background-color: #f6f8fa;
+  border: 1px solid #e1e4e8;
+  transition: all 0.2s ease;
+}
+
+.github-link:hover, .email-link:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5da;
+  text-decoration: none;
+}
+
+.about-modal svg {
+  display: inline-block;
+  vertical-align: text-bottom;
 }
 
 header h1 {

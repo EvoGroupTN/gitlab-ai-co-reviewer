@@ -3,7 +3,8 @@
 // DOM Elements
 const settingsBtn = document.getElementById('settings-btn');
 const settingsModal = document.getElementById('settings-modal');
-const modalClose = document.querySelector('.close');
+const aboutModal = document.getElementById('about-modal');
+const aboutBtn = document.getElementById('about-btn');
 const fileFilter = document.getElementById('file-filter');
 const settingsForm = document.getElementById('settings-form');
 const gitlabUrlInput = document.getElementById('gitlab-url');
@@ -25,9 +26,32 @@ const authProgress = document.getElementById('auth-progress');
 // State
 let currentMergeRequest = null;
 let selectedFiles = [];
-let allFiles = []; // Store all files for filtering
+let allFiles = [];
 
-// Helper functions at root level
+// Modal functionality
+settingsBtn.addEventListener('click', () => {
+  settingsModal.style.display = 'block';
+});
+
+aboutBtn.addEventListener('click', () => {
+  aboutModal.style.display = 'block';
+});
+
+document.querySelectorAll('.close').forEach(closeBtn => {
+  closeBtn.addEventListener('click', () => {
+    const modalId = closeBtn.dataset.modal || 'settings-modal';
+    document.getElementById(modalId).style.display = 'none';
+  });
+});
+
+window.addEventListener('click', (event) => {
+  if (event.target === settingsModal || event.target === aboutModal) {
+    settingsModal.style.display = 'none';
+    aboutModal.style.display = 'none';
+  }
+});
+
+// Helper functions
 function filterFiles(files, filterText) {
   if (!filterText) return files;
   try {
@@ -62,7 +86,6 @@ function createFileSection(title, files, className) {
     checkbox.id = `file-${file.new_path || file.old_path}`;
     checkbox.dataset.path = file.new_path || file.old_path;
     
-    // Check if file is already selected
     if (selectedFiles.some(f => (f.new_path || f.old_path) === (file.new_path || file.old_path))) {
       checkbox.checked = true;
     }
@@ -113,33 +136,27 @@ function updateSelectAllCheckbox() {
 }
 
 function renderFileList() {
-  // Keep header but clear file sections
   const header = fileListContainer.querySelector('.file-list-header');
   fileListContainer.innerHTML = '';
   if (header) {
     fileListContainer.appendChild(header);
   }
 
-  // Group files by type
   const newFiles = allFiles.filter(f => f.new_file);
   const modifiedFiles = allFiles.filter(f => !f.new_file && !f.deleted_file);
   const deletedFiles = allFiles.filter(f => f.deleted_file);
 
-  // Create sections
   createFileSection('Added', newFiles, 'new');
   createFileSection('Modified', modifiedFiles, 'modified');
   createFileSection('Deleted', deletedFiles, 'deleted');
 
-  // Update select all checkbox
   updateSelectAllCheckbox();
 }
 
-// Add filter change handler
 fileFilter?.addEventListener('input', () => {
   renderFileList();
 });
 
-// Update the selected files display
 function updateSelectedFiles() {
   selectedFilesContainer.innerHTML = '';
   
@@ -172,7 +189,6 @@ function updateSelectedFiles() {
   headerElement.appendChild(clearButton);
   selectedFilesContainer.appendChild(headerElement);
   
-  // Create selected files list
   const fileListElement = document.createElement('div');
   fileListElement.className = 'selected-files-list';
   
@@ -211,7 +227,6 @@ function updateSelectedFiles() {
   
   selectedFilesContainer.appendChild(fileListElement);
   
-  // Add Review button
   const reviewButtonContainer = document.createElement('div');
   reviewButtonContainer.className = 'review-button-container';
   
@@ -232,7 +247,6 @@ function updateSelectedFiles() {
   selectedFilesContainer.appendChild(reviewButtonContainer);
 }
 
-// Load merge request files
 async function loadMergeRequestFiles(mergeRequestId, projectId) {
   try {
     fileListContainer.innerHTML = '<div class="loading">Loading files...</div>';
@@ -246,13 +260,9 @@ async function loadMergeRequestFiles(mergeRequestId, projectId) {
       return;
     }
     
-    // Store all files for filtering
     allFiles = files;
-    
-    // Clear the container
     fileListContainer.innerHTML = '';
     
-    // Add header with count and select all option
     const headerElement = document.createElement('div');
     headerElement.className = 'file-list-header';
     
@@ -277,7 +287,6 @@ async function loadMergeRequestFiles(mergeRequestId, projectId) {
     headerElement.appendChild(selectAllContainer);
     fileListContainer.appendChild(headerElement);
     
-    // Handle select all functionality
     selectAllCheckbox.addEventListener('change', () => {
       const visibleFiles = filterFiles(allFiles, fileFilter?.value || '');
       const fileCheckboxes = document.querySelectorAll('.file-checkbox');
@@ -285,16 +294,13 @@ async function loadMergeRequestFiles(mergeRequestId, projectId) {
       fileCheckboxes.forEach(checkbox => {
         checkbox.checked = selectAllCheckbox.checked;
         
-        // Find matching file
         const file = visibleFiles.find(f => (f.new_path || f.old_path) === checkbox.dataset.path);
         if (file) {
           if (selectAllCheckbox.checked) {
-            // Add to selected files if not already there
             if (!selectedFiles.some(f => (f.new_path || f.old_path) === checkbox.dataset.path)) {
               selectedFiles.push(file);
             }
           } else {
-            // Remove from selected files
             selectedFiles = selectedFiles.filter(f => 
               (f.new_path || f.old_path) !== checkbox.dataset.path
             );
@@ -305,12 +311,10 @@ async function loadMergeRequestFiles(mergeRequestId, projectId) {
       updateSelectedFiles();
     });
     
-    // Reset filter
     if (fileFilter) {
       fileFilter.value = '';
     }
     
-    // Render the file list
     renderFileList();
     
   } catch (error) {
@@ -319,15 +323,12 @@ async function loadMergeRequestFiles(mergeRequestId, projectId) {
   }
 }
 
-// Load config when app starts
 window.addEventListener('DOMContentLoaded', async () => {
   try {
-    // Get available Copilot models
     const models = await window.api.getCopilotModels();
     
-    // Populate model select
     const modelSelect = document.getElementById('copilot-model');
-    modelSelect.innerHTML = ''; // Clear loading option
+    modelSelect.innerHTML = '';
     models.forEach(model => {
       const option = document.createElement('option');
       option.value = model;
@@ -338,13 +339,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     const languageSelect = document.getElementById('review-language');
     const config = await window.api.getConfig();
     
-    // Initialize form values
     gitlabUrlInput.value = config.gitlabUrl || '';
     gitlabTokenInput.value = config.gitlabToken || '';
     if (languageSelect) {
       languageSelect.value = config.reviewLanguage || 'english';
     }
-    modelSelect.value = config.copilotModel || models[0] || 'claude-3.5-sonnet';
+    modelSelect.value = config.copilotModel || models[0] || '';
     
     await checkGitHubAuthStatus();
     
@@ -359,22 +359,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// Settings modal functionality
-settingsBtn.addEventListener('click', () => {
-  settingsModal.style.display = 'block';
-});
-
-modalClose.addEventListener('click', () => {
-  settingsModal.style.display = 'none';
-});
-
-window.addEventListener('click', (event) => {
-  if (event.target === settingsModal) {
-    settingsModal.style.display = 'none';
-  }
-});
-
-// Handle settings form submission
 settingsForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   
@@ -395,7 +379,6 @@ settingsForm.addEventListener('submit', async (event) => {
   }
 });
 
-// Refresh button functionality
 refreshBtn.addEventListener('click', async () => {
   try {
     await loadMergeRequests();
@@ -409,7 +392,6 @@ refreshBtn.addEventListener('click', async () => {
   }
 });
 
-// Helper functions
 function showError(message) {
   const errorElement = document.createElement('div');
   errorElement.className = 'error-message';
@@ -428,7 +410,6 @@ function showMessage(message) {
   setTimeout(() => messageElement.remove(), 3000);
 }
 
-// Load merge requests function
 async function loadMergeRequests() {
   try {
     mergeRequestsContainer.innerHTML = '<div class="loading">Loading merge requests...</div>';
@@ -442,29 +423,24 @@ async function loadMergeRequests() {
     
     mergeRequestsContainer.innerHTML = '';
     
-    // Count by role
     const reviewerMRs = mergeRequests.filter(mr => mr.userRole === 'reviewer' || mr.userRole === 'both').length;
     const assigneeMRs = mergeRequests.filter(mr => mr.userRole === 'assignee' || mr.userRole === 'both').length;
     
-    // Add count badge
     const countElement = document.createElement('div');
     countElement.className = 'mr-count';
     countElement.textContent = `Found ${mergeRequests.length} merge request${mergeRequests.length > 1 ? 's' : ''} (${reviewerMRs} to review, ${assigneeMRs} assigned)`;
     mergeRequestsContainer.appendChild(countElement);
     
-    // Render each merge request
     mergeRequests.forEach(mr => {
       const mrElement = document.createElement('div');
       mrElement.className = 'mr-card';
       mrElement.dataset.mrId = mr.iid.toString();
       mrElement.dataset.projectId = mr.project_id.toString();
       
-      // Format date for better readability
       const createdDate = new Date(mr.created_at);
       const updatedDate = new Date(mr.updated_at);
       const dateFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
       
-      // Determine role badge text and class
       let roleBadge = '';
       if (mr.userRole === 'reviewer') {
         roleBadge = '<span class="role-badge reviewer">Reviewer</span>';
@@ -495,7 +471,6 @@ async function loadMergeRequests() {
         </div>
       `;
       
-      // Add click handler to load files
       mrElement.addEventListener('click', async (event) => {
         if (event.target.classList.contains('external-link')) {
           return;
@@ -519,7 +494,6 @@ async function loadMergeRequests() {
   }
 }
 
-// GitHub authorization functions
 async function checkGitHubAuthStatus() {
   try {
     const authStatus = await window.api.githubCheckAuth();
