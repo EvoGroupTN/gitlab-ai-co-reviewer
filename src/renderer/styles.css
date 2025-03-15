@@ -883,15 +883,15 @@ button:hover {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.stat-item.error {
+.stat-item.error-rev {
   border-left: 4px solid #dc3545;
 }
 
-.stat-item.warning {
+.stat-item.warning-rev {
   border-left: 4px solid #ffc107;
 }
 
-.stat-item.info {
+.stat-item.info-rev {
   border-left: 4px solid #17a2b8;
 }
 
@@ -901,15 +901,15 @@ button:hover {
   margin-bottom: 5px;
 }
 
-.stat-item.error .stat-count {
+.stat-item.error-rev .stat-count {
   color: #dc3545;
 }
 
-.stat-item.warning .stat-count {
+.stat-item.warning-rev .stat-count {
   color: #ffc107;
 }
 
-.stat-item.info .stat-count {
+.stat-item.info-rev .stat-count {
   color: #17a2b8;
 }
 

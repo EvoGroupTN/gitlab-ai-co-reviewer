@@ -1,3 +1,5 @@
+/* global window, document, localStorage, alert, console */
+
 // DOM Elements
 const backButton = document.getElementById('back-btn');
 const fileCount = document.getElementById('file-count');

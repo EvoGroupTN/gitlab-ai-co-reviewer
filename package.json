@@ -1,7 +1,7 @@
 {
-  "name": "electron-gitlab-mr-viewer",
+  "name": "co-reviewer",
   "version": "0.1.0",
-  "description": "GitLab Merge Request Viewer",
+  "description": "GitLab Merge Request Reviewer using copilot AI",
   "main": "dist/main/main.js",
   "scripts": {
     "build": "tsc && npm run copy-files",
@@ -16,7 +16,9 @@
     "electron",
     "gitlab",
     "merge request",
-    "typescript"
+    "typescript",
+    "AI",
+    "copilot"
   ],
   "author": "",
   "license": "MIT",

@@ -1,4 +1,4 @@
-# GitLab Merge Request Viewer
+# GitLab Merge Request AI Co-Reviewer
 
 A cross-platform Electron application for viewing and managing GitLab merge requests assigned to you.
 

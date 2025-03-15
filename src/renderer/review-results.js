@@ -1,3 +1,5 @@
+/* global window, document, localStorage, alert, confirm, console */
+
 // DOM Elements
 const backButton = document.getElementById('back-btn');
 const postCommentsButton = document.getElementById('post-comments-btn');
