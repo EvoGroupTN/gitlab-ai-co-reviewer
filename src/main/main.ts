@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, clipboard } from 'electron';
 import * as path from 'path';
 import * as url from 'url';
 import Store from 'electron-store';
@@ -102,6 +102,16 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (mainWindow === null) {
     createWindow();
+  }
+});
+
+ipcMain.handle('copyToClipboard', async (event, text) => {
+  try {
+    clipboard.writeText(text);
+    return true;
+  } catch (error) {
+    console.error('Clipboard error:', error);
+    return false;
   }
 });
 

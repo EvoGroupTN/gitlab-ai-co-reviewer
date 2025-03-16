@@ -44,9 +44,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('github-clear-token'),
     
   // Clipboard functions
-  copyToClipboard: (text: string): void => {
-    clipboard.writeText(text);
-  },
+  copyToClipboard: (text: string) => ipcRenderer.invoke('copyToClipboard', text),
   
   // Code review functions
   reviewCode: (

@@ -325,26 +325,17 @@ async function loadMergeRequestFiles(mergeRequestId, projectId) {
 
 window.addEventListener('DOMContentLoaded', async () => {
   try {
-    const models = await window.api.getCopilotModels();
-    
-    const modelSelect = document.getElementById('copilot-model');
-    modelSelect.innerHTML = '';
-    models.forEach(model => {
-      const option = document.createElement('option');
-      option.value = model;
-      option.textContent = model;
-      modelSelect.appendChild(option);
-    });
-
     const languageSelect = document.getElementById('review-language');
     const config = await window.api.getConfig();
-    
+
+    await loadCopilotModels(config);
+
     gitlabUrlInput.value = config.gitlabUrl || '';
     gitlabTokenInput.value = config.gitlabToken || '';
     if (languageSelect) {
       languageSelect.value = config.reviewLanguage || 'english';
     }
-    modelSelect.value = config.copilotModel || models[0] || '';
+    
     
     await checkGitHubAuthStatus();
     
@@ -494,6 +485,23 @@ async function loadMergeRequests() {
   }
 }
 
+async function loadCopilotModels(config) {
+  try {
+    const modelSelect = document.getElementById('copilot-model');
+    const models = await window.api.getCopilotModels();
+    modelSelect.innerHTML = '';
+    models.forEach(model => {
+      const option = document.createElement('option');
+      option.value = model;
+      option.textContent = model;
+      modelSelect.appendChild(option);
+    });
+    if (config) modelSelect.value = config.copilotModel || models[0] || '';
+  } catch (error) {
+    console.error('Failed to load Copilot models:', error);
+  }
+}
+
 async function checkGitHubAuthStatus() {
   try {
     const authStatus = await window.api.githubCheckAuth();
@@ -532,7 +540,7 @@ githubAuthBtn.addEventListener('click', async () => {
     
     verificationUrl.href = deviceCode.verification_uri;
     userCodeElement.textContent = deviceCode.user_code;
-    
+
     authProgress.classList.remove('hidden');
     
     const result = await window.api.githubPollToken(deviceCode.device_code, deviceCode.interval);
@@ -541,6 +549,7 @@ githubAuthBtn.addEventListener('click', async () => {
       await checkGitHubAuthStatus();
       githubDeviceFlow.classList.add('hidden');
       showMessage('GitHub authorization successful!');
+      await loadCopilotModels();
     }
   } catch (error) {
     githubDeviceFlow.classList.add('hidden');
@@ -549,10 +558,14 @@ githubAuthBtn.addEventListener('click', async () => {
   }
 });
 
-copyCodeBtn.addEventListener('click', () => {
+copyCodeBtn.addEventListener('click', async () => {
   const code = userCodeElement.textContent;
   if (code) {
-    window.api.copyToClipboard(code);
-    showMessage('Code copied to clipboard!');
+    const success = await window.api.copyToClipboard(code);
+    if (success) {
+      showMessage('Code copied to clipboard!');
+    } else {
+      showError('Failed to copy to clipboard');
+    }
   }
 });
