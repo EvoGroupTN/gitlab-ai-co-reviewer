@@ -91,6 +91,7 @@ export class GitLabService {
           params: {
             reviewer_id: userId,
             state: 'opened',
+            scope: 'all',
             order_by: 'updated_at',
             sort: 'desc',
             page,
